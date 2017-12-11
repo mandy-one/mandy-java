@@ -1,0 +1,276 @@
+---
+layout: post
+title:  "SpringSecurity(三)"
+description: 用户权限与资源权限均从数据库获取
+categories: life
+author: mandy-one
+---
+# SpringSecurity(三)
+## 方法三：用户权限与资源权限均从数据库获取
+spring security和Acegi不同，它不能修改默认filter了，但支持插入filter，所以根据这个，我们可以插入自己的filter来灵活使用，此处主要在方法二基础上实现资源所需权限的数据库存储。
+在security中增加自己的filter：
+``` javascript
+<custom-filter ref="myFilter" before="FILTER_SECURITY_INTERCEPTOR" />
+```
+该filter必须包含如下三个属性:
+authenticationManager为验证配置，认证管理器，实现用户认证的入口，需要改变认证的方式，我们可以实现自己的 AuthenticationProvider；如果需要改变认证的用户信息来源，我们可以实现 UserDetailsService，方法二中所用JdbcDaoImpl即是UserDetailsService一种实现，它从数据库中获取用户信息，且可获得组权限信息，若数据库结构改变可通过属性项usersByUsernameQuery、authoritiesByUsernameQuery 和 groupAuthoritiesByUsernameQuery调整sql语句；
+accessDecisionManager为访问决策器，决定某个用户具有的角色，是否有足够的权限去访问某个资源；
+securityMetadataSource为资源源数据定义，将所有的资源和权限对应关系建立起来，即定义某一资源可以被哪些角色（权限）访问
+``` javascript
+<bean:bean id="myFilter"
+      class="cn.myproject.security.MyFilterSecurityInterceptor">
+       <bean:property name="authenticationManager" ref="authenticationManager" />
+        <bean:property name="accessDecisionManager" ref="myAccessDecisionManagerBean" />
+       <bean:property name="securityMetadataSource" ref="securityMetadataSource" />
+    </bean:bean>
+```
+三个类均需在配置文件中配置好对应实现类
+下面是拦截器及后两个实现类：
+MyFilterSecurityInterceptor：
+``` javascript
+package com.ccf.myproject.security;
+
+import org.springframework.security.access.SecurityMetadataSource;
+import org.springframework.security.access.intercept.AbstractSecurityInterceptor;
+import org.springframework.security.access.intercept.InterceptorStatusToken;
+import org.springframework.security.web.FilterInvocation;
+import org.springframework.security.web.access.intercept.FilterInvocationSecurityMetadataSource;
+
+
+import javax.servlet.*;
+import java.io.IOException;
+
+public class MyFilterSecurityInterceptor extends AbstractSecurityInterceptor implements Filter {
+    private FilterInvocationSecurityMetadataSource securityMetadataSource;
+    @Override
+    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+        FilterInvocation fi = new FilterInvocation(request,response,chain);
+        invoke(fi);
+
+    }
+    private void invoke(FilterInvocation fi) throws IOException,ServletException{
+        InterceptorStatusToken token = super.beforeInvocation(fi);
+                try {
+                        //执行下一个拦截器
+                        fi.getChain().doFilter(fi.getRequest(), fi.getResponse());
+                        } finally {
+                            super.afterInvocation(token, null);
+                        }
+
+    }
+    @Override
+    public  SecurityMetadataSource obtainSecurityMetadataSource(){
+        return  this.securityMetadataSource;
+    }
+
+    public void setSecurityMetadataSource(FilterInvocationSecurityMetadataSource securityMetadataSource) {
+        this.securityMetadataSource = securityMetadataSource;
+    }
+
+    public FilterInvocationSecurityMetadataSource getSecurityMetadataSource() {
+        return securityMetadataSource;
+    }
+    @Override
+    public void destroy() {
+
+    }
+
+    @Override
+    public void init(FilterConfig filterConfig) throws ServletException {
+
+    }
+    @Override
+    public Class<? extends Object> getSecureObjectClass() {
+        return FilterInvocation.class;
+    }
+}
+```
+MyaccessDecisionManager：
+``` javascript
+package com.ccf.myproject.security;
+
+import org.springframework.security.access.AccessDecisionManager;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.access.ConfigAttribute;
+import org.springframework.security.access.SecurityConfig;
+import org.springframework.security.authentication.InsufficientAuthenticationException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+
+import java.util.Collection;
+import java.util.Iterator;
+
+public class MyAccessDecisionManager implements AccessDecisionManager {
+    //检查用户是否够权限访问资源
+    //参数authentication是从spring的全局缓存SecurityContextHolder中拿到的，里面是用户的权限信息
+    //参数object是url
+    //参数configAttributes所需的权限
+    public void decide(Authentication authentication, Object object,
+                       Collection<ConfigAttribute> configAttributes)
+            throws AccessDeniedException, InsufficientAuthenticationException {
+        if(configAttributes == null){
+            return;
+        }
+
+        Iterator<ConfigAttribute> ite=configAttributes.iterator();
+        while(ite.hasNext()){
+            ConfigAttribute ca=ite.next();
+            String needRole=((SecurityConfig)ca).getAttribute();
+            for(GrantedAuthority ga : authentication.getAuthorities()){
+                if(needRole.equals(ga.getAuthority())){
+
+                    return;
+                }
+            }
+        }
+        //注意：执行这里，后台是会抛异常的，但是界面会跳转到所配的access-denied-page页面
+        throw new AccessDeniedException("no right");
+    }
+    public boolean supports(ConfigAttribute attribute) {
+        return true;
+    }
+    public boolean supports(Class<?>clazz) {
+        return true;
+    }
+}
+```
+MysecurityMetadataSource:
+``` javascript
+package com.ccf.myproject.security;
+
+import com.ccf.myproject.po.Resource;
+import com.ccf.myproject.service.AntUrlPathMatcher;
+import com.ccf.myproject.service.UrlAuthorityServiceImpl;
+import com.ccf.myproject.service.UrlMatcher;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.ConfigAttribute;
+import org.springframework.security.web.FilterInvocation;
+import org.springframework.security.web.access.intercept.FilterInvocationSecurityMetadataSource;
+
+import java.util.*;
+
+public class MySecurityMetadataSource implements FilterInvocationSecurityMetadataSource {
+    private UrlMatcher urlMatcher = new AntUrlPathMatcher();
+    private static Map<String, Collection<ConfigAttribute>> resourceMap = null;
+@Autowired
+    private UrlAuthorityServiceImpl urlAuthorityServiceImpl;
+    public MySecurityMetadataSource(UrlAuthorityServiceImpl urlAuthorityServiceImpl) throws Exception {
+        this.urlAuthorityServiceImpl=urlAuthorityServiceImpl;
+        loadResourceDefine();
+    }
+    private void loadResourceDefine() throws Exception {
+        if (resourceMap == null) {
+            resourceMap = new HashMap<String, Collection<ConfigAttribute>>();
+            List<Resource> resources = urlAuthorityServiceImpl.findAllUrl();
+            // 加载资源对应的权限
+            for (Resource resource : resources) {
+                Collection<ConfigAttribute> auths = urlAuthorityServiceImpl
+                        .loadRoleByResource(resource.getResource());
+                System.out.println("权限=" + auths);
+                resourceMap.put(resource.getResource(), auths);
+            }
+        }
+
+    }
+    @Override
+    public Collection<ConfigAttribute> getAttributes(Object object) throws IllegalArgumentException {
+        String url = ((FilterInvocation)object).getRequestUrl();
+        Iterator<String> ite = resourceMap.keySet().iterator();
+        while (ite.hasNext()) {
+            String resURL = ite.next();
+            if (urlMatcher.pathMatchesUrl(resURL, url)) {
+                return resourceMap.get(resURL);
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public Collection<ConfigAttribute> getAllConfigAttributes() {
+        return null;
+    }
+
+    @Override
+    public boolean supports(Class<?> aClass) {
+        return true;
+    }
+}
+```
+applicationContext.xml:
+``` javascript
+<?xml version="1.0" encoding="UTF-8"?>
+
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:mvc="http://www.springframework.org/schema/mvc"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+    http://www.springframework.org/schema/beans/spring-beans-3.2.xsd
+    http://www.springframework.org/schema/mvc
+    http://www.springframework.org/schema/mvc/spring-mvc-3.2.xsd
+    http://www.springframework.org/schema/context
+    http://www.springframework.org/schema/context/spring-context-3.2.xsd
+    http://www.springframework.org/schema/aop
+    http://www.springframework.org/schema/aop/spring-aop-3.2.xsd
+    http://www.springframework.org/schema/tx
+    http://www.springframework.org/schema/tx/spring-tx-3.2.xsd">
+
+    <!-- 第一步：配置数据源 -->
+    <context:property-placeholder location="classpath:jdbc.properties" />
+    <bean id="dataSource" class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+        <property name="url" value="${jdbc.url}"></property>
+        <property name="driverClassName" value="${jdbc.driver}"></property>
+        <property name="username" value="${jdbc.username}"></property>
+        <property name="password" value="${jdbc.password}"></property>
+    </bean>
+
+    <!-- 第二步：创建sqlSessionFactory。生产sqlSession -->
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <property name="dataSource" ref="dataSource"></property>
+        <property name="configLocation" value="classpath:sqlMapConfig.xml"></property>
+    </bean>
+    <!-- 配置mybatis接口代理开发
+      * 接口类名和映射文件必须同名
+      *　接口类和映射文件必须在同一个目录　下
+      * 映射文件namespace名字必须是接口的全类路径名
+      *　接口的方法名必须和映射Statement的ｉｄ一致
+     -->
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <property name="basePackage" value="com.ccf.myproject.dao"></property>
+        <property name="sqlSessionFactoryBeanName" value="sqlSessionFactory"></property>
+    </bean>
+
+    <!-- 第三步：事务 -->
+    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource"></property>
+    </bean>
+
+    <!-- 配置通知 -->
+    <tx:advice id="txAdvice" transaction-manager="transactionManager">
+        <tx:attributes>
+            <tx:method name="save*" propagation="REQUIRED" />
+            <tx:method name="update*" propagation="REQUIRED" />
+            <tx:method name="delete*" propagation="REQUIRED" />
+            <tx:method name="insert*" propagation="REQUIRED" />
+            <tx:method name="*" propagation="REQUIRED" />
+        </tx:attributes>
+    </tx:advice>
+    <import resource="spring-security.xml"/>
+</beans>
+```
+sqlMapConfig.xml:
+``` javascript
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuration PUBLIC  "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+    <typeAliases>
+        <package name="com.ccf.myproject.po"/>
+        <package name="org.springframework.security.access"/>
+        <package name="org.springframework.security.core"/>
+    </typeAliases>
+    <mappers>
+        <mapper resource="com/ccf/myproject/dao/UrlAuthorityService.xml"></mapper>
+    </mappers>
+</configuration>
+```

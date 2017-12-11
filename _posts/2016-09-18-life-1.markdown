@@ -1,12 +1,12 @@
 ---
 layout: post
-title:  "Why did I leave a high paying job?"
-description: orem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa. Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus.
+title:  "SpringSecurity(一)"
+description: 用户权限与资源权限全部写在配置文件中
 categories: life
-author: ashwathama
+author: mandy-one
 ---
-
-# 方法一：不用数据库，全部数据写在配置文件
+# SpringSecurity(一)
+## 方法一：不用数据库，全部数据写在配置文件
 web.xml在springmvc基础上需增加配置：
 ``` javascript
 <!-- spring配置文件位置 -->
