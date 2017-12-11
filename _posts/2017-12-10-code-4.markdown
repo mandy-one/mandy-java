@@ -2,7 +2,7 @@
 layout: post
 title:  "SpringSecurity(三)"
 description: 用户权限与资源权限均从数据库获取
-categories: life
+categories: code
 author: mandy-one
 ---
 # SpringSecurity(三)
@@ -13,9 +13,9 @@ spring security和Acegi不同，它不能修改默认filter了，但支持插入
 <custom-filter ref="myFilter" before="FILTER_SECURITY_INTERCEPTOR" />
 ```
 该filter必须包含如下三个属性:
-authenticationManager为验证配置，认证管理器，实现用户认证的入口，需要改变认证的方式，我们可以实现自己的 AuthenticationProvider；如果需要改变认证的用户信息来源，我们可以实现 UserDetailsService，方法二中所用JdbcDaoImpl即是UserDetailsService一种实现，它从数据库中获取用户信息，且可获得组权限信息，若数据库结构改变可通过属性项usersByUsernameQuery、authoritiesByUsernameQuery 和 groupAuthoritiesByUsernameQuery调整sql语句；
-accessDecisionManager为访问决策器，决定某个用户具有的角色，是否有足够的权限去访问某个资源；
-securityMetadataSource为资源源数据定义，将所有的资源和权限对应关系建立起来，即定义某一资源可以被哪些角色（权限）访问
+* authenticationManager为验证配置，认证管理器，实现用户认证的入口，需要改变认证的方式，我们可以实现自己的 AuthenticationProvider；如果需要改变认证的用户信息来源，我们可以实现 UserDetailsService，方法二中所用JdbcDaoImpl即是UserDetailsService一种实现，它从数据库中获取用户信息，且可获得组权限信息，若数据库结构改变可通过属性项usersByUsernameQuery、authoritiesByUsernameQuery 和 groupAuthoritiesByUsernameQuery调整sql语句；
+* accessDecisionManager为访问决策器，决定某个用户具有的角色，是否有足够的权限去访问某个资源；
+* securityMetadataSource为资源源数据定义，将所有的资源和权限对应关系建立起来，即定义某一资源可以被哪些角色（权限）访问
 ``` javascript
 <bean:bean id="myFilter"
       class="cn.myproject.security.MyFilterSecurityInterceptor">
@@ -24,7 +24,7 @@ securityMetadataSource为资源源数据定义，将所有的资源和权限对�
        <bean:property name="securityMetadataSource" ref="securityMetadataSource" />
     </bean:bean>
 ```
-三个类均需在配置文件中配置好对应实现类
+三个类均需在配置文件中配置好对应实现类。
 下面是拦截器及后两个实现类：
 MyFilterSecurityInterceptor：
 ``` javascript
@@ -166,7 +166,6 @@ public class MySecurityMetadataSource implements FilterInvocationSecurityMetadat
             for (Resource resource : resources) {
                 Collection<ConfigAttribute> auths = urlAuthorityServiceImpl
                         .loadRoleByResource(resource.getResource());
-                System.out.println("权限=" + auths);
                 resourceMap.put(resource.getResource(), auths);
             }
         }
@@ -244,7 +243,6 @@ applicationContext.xml:
     <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
         <property name="dataSource" ref="dataSource"></property>
     </bean>
-
     <!-- 配置通知 -->
     <tx:advice id="txAdvice" transaction-manager="transactionManager">
         <tx:attributes>
@@ -274,3 +272,4 @@ sqlMapConfig.xml:
     </mappers>
 </configuration>
 ```
+dao层、service层、controller层均是根据不同用户所要实现的功能来对应实现与数据库的交互了。

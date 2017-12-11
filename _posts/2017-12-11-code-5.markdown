@@ -1,0 +1,16 @@
+---
+layout: post
+title:  "SpringSecurity实现"
+description: 效果图展示
+categories: code
+author: mandy-one
+---
+登陆界面
+![登陆界面]({{site.baseurl}}/images/login.png)
+用户界面
+![用户界面]({{site.baseurl}}/images/user.png)
+管理员界面
+![管理员界面]({{site.baseurl}}/images/admin.png)
+用户验证成功后，根据所拥有权限跳转到不同界面，普通用户只有查询功能，管理员对用户有增删改查功能。<br>
+
+在本项目中用户权限包含自身权限和组权限（即角色所对应权限），自身权限新增用户默认均为ROLE_GUEST不直接通过管理员配置，可通过数据库配置，组权限可以由管理员直接进行配置。

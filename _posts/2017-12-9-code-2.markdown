@@ -2,7 +2,7 @@
 layout: post
 title:  "SpringSecurity(一)"
 description: 用户权限与资源权限全部写在配置文件中
-categories: life
+categories: code
 author: mandy-one
 ---
 # SpringSecurity(一)
@@ -29,8 +29,9 @@ web.xml在springmvc基础上需增加配置：
 <filter-mapping>
 <filter-name>springSecurityFilterChain</filter-name>
 <url-pattern>/*</url-pattern>
-<filter-mapping>~
+<filter-mapping>
 ```
+
 Spring-security.xml:
 ``` javascript
 <?xml version="1.0" encoding="UTF-8"?>
@@ -45,20 +46,23 @@ Spring-security.xml:
          http://www.springframework.org/schema/beans/spring-beans-4.1.xsd
          http://www.springframework.org/schema/security
          http://www.springframework.org/schema/security/spring-security-4.1.xsd http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc.xsd http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd">
+         <!--登录界面不需权限验证-->
     <security:http pattern="/loginPage" security="none"></security:http>
     <security:http auto-config="true">
+         <!--配置资源权限-->
         <security:intercept-url pattern="/admin" access="hasRole('ROLE_ADMIN')"/>
         <security:intercept-url pattern="/**" access="hasRole('ROLE_USER')"/>
+        <!--配置登陆界面、验证成功处理类、验证失败界面、登出界面-->
+        <!--框架默认在认证完成后跳转到登陆前请求的url，通过在security中配置验证成功后的处理类来实现不同用户的不同跳转页面-->
         <security:form-login login-page="/loginPage" login-processing-url="/login" authentication-success-handler-ref="MyAuthenticationSuccessHandler"
                     authentication-failure-url="/loginPage?error=error"/>
         <security:logout logout-url="/logout" logout-success-url="/loginPage" invalidate-session="true"/>
+        <!--保存session-->
         <security:remember-me key="authorition"/>
         <security:csrf disabled="true"/>
-
     </security:http>
     <bean id="MyAuthenticationSuccessHandler" class="cn.myproject.security.MyAuthenticationSuccessHandler"/>
-
-
+<!--配置用户权限-->
     <security:authentication-manager>
         <security:authentication-provider>
             <security:user-service>
@@ -69,8 +73,8 @@ Spring-security.xml:
     </security:authentication-manager>
 </beans>
 ```
-applicationContext.xml:不需要连接数据库获取数据，此文件不需配置；
-MyAuthenticationSuccessHandler:框架默认在认证完成后跳转到登陆前请求的url，通过在security中配置验证成功后的处理类来实现不同用户的不同跳转页面
+applicationContext.xml:不需要连接数据库获取数据，此方法中不需配置；<br>
+验证成功处理类MyAuthenticationSuccessHandler:
 
 ``` javascript
 package cn.myproject.security;

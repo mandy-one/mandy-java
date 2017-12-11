@@ -2,12 +2,12 @@
 layout: post
 title:  "SpringSecurity(二)"
 description: 用户权限从数据库获取
-categories: life
+categories: code
 author: mandy-one
 ---
 # SpringSecurity(二)
 ## 方法二：用户权限从数据库获取（使用数据库，根据spring security默认实现代码设计数据库）
-由极客教程或其他说明文档可以看到spring security默认数据库结构，用于将用户拥有的权限存入数据库，只需将Spring-security.xml中
+由[极客学院教程](http://wiki.jikexueyuan.com/project/spring-security/)或其他说明文档可以看到spring security默认数据库结构，用于将用户拥有的权限存入数据库，只需将Spring-security.xml中：
 ``` javascript
 < security:authentication-manager>
     <security:authentication-provider>
@@ -26,13 +26,13 @@ author: mandy-one
 
 <bean id="userDetailsService" class="org.springframework.security.core.userdetails.jdbc.JdbcDaoImpl">
     <property name="dataSource" ref="dataSource"/>
+    <!--包含组权限-->
     <property name="enableGroups" value="true"/>
 </bean>
 ```
 applicationContext:
 ``` javascript
 <?xml version="1.0" encoding="UTF-8"?>
-
 <beans xmlns="http://www.springframework.org/schema/beans"
        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:mvc="http://www.springframework.org/schema/mvc"
        xmlns:context="http://www.springframework.org/schema/context"
@@ -67,4 +67,4 @@ jdbc.url=jdbc:mysql://localhost:3306/spring1
 jdbc.username=root
 jdbc.password=654321
 ```
-此种方法即改变用户信息的来源从静态数据变为数据库存储，通过SpringSecurity内部默认的表结构及sql语句查询方式读取用户信息
+此种方法即改变用户信息的来源从静态数据变为数据库存储，通过SpringSecurity内部默认的表结构及sql语句查询方式读取用户信息。

@@ -1,0 +1,17 @@
+---
+layout: post
+title:  "SpringSecurity综述"
+description: 使用方法根据数据来源分类
+categories: code
+author: mandy-one
+---
+# SpringSecurity综述
+## 使用方法根据数据来源分类
+在Springmvc框架下利用SpringSecurity实现权限管理，此处权限涉及用户拥有权限及资源所需权限。
+根据 [博客](http://blog.csdn.net/u012367513/article/details/38866465)
+及[极客学院教程](http://wiki.jikexueyuan.com/project/spring-security/)
+根据数据来源不同用三种方法对SpringSecurity进行应用：
+
+* 用户权限与资源权限全部写在配置文件中
+* 用户权限从数据库获取
+* 用户权限与资源权限均从数据库获取
