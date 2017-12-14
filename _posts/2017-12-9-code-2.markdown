@@ -1,11 +1,11 @@
 ---
 layout: post
 title:  "SpringSecurity(二)"
-description: 用户权限与资源权限全部写在配置文件中
+description: 最小化springsecurity配置下的静态数据登陆实现
 categories: code
 author: mandy-one
 ---
-#最小化springsecurity配置下的静态数据登陆实现
+# 最小化springsecurity配置下的静态数据登陆实现
 本节及下节我们将学习springsecurity的基本配置及重要属性配置，根据其命名空间说明进行配置，重在应用，框架原理我们将在后面章节介绍，在此，我们首先通过静态数据实例熟悉其都有哪些常用属性，熟悉本框架功能，在学会简单应用及成功运行基础上对本框架建立初步认识，而后对其原理进行解析，实现更深层次的应用。
 ### 第一步：web应用的入口：web.xml配置文件
 Spring Secuirty是在Filter中进行权限验证，一定要声明过滤器配置，在此之前需要首先加载配置文件。<br>
