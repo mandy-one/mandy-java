@@ -70,7 +70,7 @@ UserDetailsService，用来根据传递的字符串形式的用户名(或者验�
 事实上，Spring Security并不关心你如何将 Authentication 对象放入 SecurityContextHolder中。唯一的关键要求是在 AbstractSecurityInterceptor 认证一个用户请求之前确保 SecurityContextHolder 包含一个用于表示principal的 Authentication 对象。因此可以编写自己的Filter或者MVC controller，来提供与那些不是基于Spring Security的验证系统的互操作能力。需要做的是编写一个过滤器，从某个位置读取第三方用户信息，构建一个特定的Spring Security Authentication 对象，并将其放入 SecurityContextHolder中。在这种情况下，需要考虑在内置的认证基础结构上自动应用这些。例如，你可能需要在返回给客户端响应之前，预先创建一个Http Session对象来为不同线程缓存安全上下文。
 ## 3. Spring Security中的访问控制(授权)
 Spring Security中负责做出访问控制决定的主要接口是 AccessDecisionManager，其有一个 decide 方法，接受一个描述principal的 Authentication 对象，一个“security object”和一个应用于这个对象的安全元数据属性列表(例如访问一个资源必须被授予的角色列表)。
-## 核心服务
+## 4. 核心服务
 现在我们已经在较高的层面对SpringSecuirty的架构和核心类有所了解，现在我们来仔细的查看一到两个其核心接口的实现，特别是AuthenticationManager、UserDetailsService 和AccessDecisionManager。这三个接口会贯穿我们后面文档中的所有内容，因此掌握他们是如何配置以及使用是非常重要的。
 
 ### AuthenticationManager, ProviderManager 与AuthenticationProvider
