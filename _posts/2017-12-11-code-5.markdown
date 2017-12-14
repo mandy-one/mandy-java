@@ -32,15 +32,16 @@ author: mandy-one
 </bean>
 ```
 ## 方法三：使用自定义filter
-通过方法二发现似乎还是不太满足需求，只是把用户信息来源灵活化了一点。
-问题一：如果我要自定义用户信息源不匹配默认配置怎么办？那就要重新自定义UserDetailsService的实现了，这个我们不单独作为一种方法，可以结合后面需求一起介绍。
+通过方法二发现似乎还是不太满足需求，只是把用户信息来源灵活化了一点。<br>
+问题一：如果我要自定义用户信息源不匹配默认配置怎么办？那就要重新自定义UserDetailsService的实现了，这个我们不单独作为一种方法，可以结合后面需求一起介绍。<br>
 问题二：如果我想把资源权限信息不采用静态配置，也放入数据库呢？对此springsecurity默认的未做实现，那我想自己实现要怎么办呢？spring security和Acegi不同，它不能修改默认filter了，但支持插入filter，所以根据这个，我们应该自定义一个filter，这就要结合其架构原理再认真把整个认证流程好好梳理一遍了。<br>
 1. 用户登陆，会被AuthenticationProcessingFilter拦截，调用AuthenticationManager的实现，而且AuthenticationManager会调用ProviderManager来获取用户认证信息，不同的Provider调用的服务不同，即用户信息来源不同；
 2. 如果验证通过后会将用户的权限信息封装一个User放到spring的全局缓存SecurityContextHolder中，以备后面访问资源时使用。
-3. 访问资源（即授权管理），访问url时，会通过AbstractSecurityInterceptor拦截器拦截，其中会调用FilterInvocationSecurityMetadataSource的方法来获取被拦截url所需的全部权限； 再调用授权管理器AccessDecisionManager，这个授权管理器会通过spring的全局缓存SecurityContextHolder获取用户的权限信息，还会获取被拦截的url和被拦截url所需的全部权限，然后根据所配的策略返回（如果权限足够，则返回，权限不够则报错并调用权限不足页面）。
+3. 访问资源（即授权管理），访问url时，会通过AbstractSecurityInterceptor拦截器拦截，其中会调用FilterInvocationSecurityMetadataSource的方法来获取被拦截url所需的全部权限； 再调用授权管理器AccessDecisionManager，这个授权管理器会通过spring的全局缓存SecurityContextHolder获取用户的权限信息，还会获取被拦截的url和被拦截url所需的全部权限，然后根据所配的策略返回（如果权限足够，则返回，权限不够则报错并调用权限不足页面）。<br>
 根据流程我们可以总结出来自定义一个filter必须包含 authenticationManager,securityMetadataSource,accessDecisionManager三个属性，其中 authenticationManager属性我们重在实现其UserDetailsService，securityMetadataSource加载全部资源权限信息，accessDecisionManager配置授权策略，查看接口可知主要是实现decide。
 因此我们在方法二基础上做如下改变：
 securityConfig.xml中配置自定义filter：<br>
+
 http中配置：
 
 ```
@@ -101,5 +102,5 @@ public class MyAccessDecisionManager implements AccessDecisionManager
 ## 总结
 感觉springsecurity就是一个可以添加到框架中的小模块，就像是软件的小插件，用来实现用户资源权限管理，能让它按默认配置运行起来很容易，想让它按实际需求发挥作用，还需要更全面的学习它的配置项，清楚其可扩展点。<br>
 从学习springmvc到springsecurity我发现自己学习的方法很有问题，对原理的关注度不够，以至于学习不够透彻，在结合sringmvc做security实现时很大一部分是由于sringmvc框架不熟悉造成了接口实现类混乱，然而我对自己的springmvc实现还抱有迷之自信，导致迟迟不能发现自己错误，从而觉得一定是security很复杂，迟迟不能实现。
-在写代码过程中想先实现别人项目再仿写，盲目复制粘贴，不理逻辑，其中小错误都不能完全改正。
+在写代码过程中想先实现别人项目再仿写，盲目复制粘贴，不理逻辑，其中小错误都不能完全改正。<br>
 因此我总结出的以后的学习方法，从原理入手，从官方说明文档或相近解析文档入手理解逻辑流程，再根据自己理解做简单实现，扩展时参考别人案例也要步步分析修改，盲目复制粘贴别人项目没有意义。
