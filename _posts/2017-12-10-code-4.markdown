@@ -16,8 +16,7 @@ Spring Security 3.0需要Java 5.0或者更高的版本。由于Spring Security�
 ## 1. 核心组件
 ### SecurityContextHolder, SecurityContext 和 Authentication 对象
 
-* 最基础的对象是 SecurityContextHolder，这是我们在应用中存储当前安全细节的地方，包含了当前在应用中使用到的principal（通过认证的用户）细节。默认情况下， SecurityContextHolder 使用一个 ThreadLocal 对象来存储这些细节，这表示对于在同一个线程中执行的方法，安全上下文(security context)都是可用的，即使安全上下文没有显式的当做方法的参数进行传递。通过这种方式使用 ThreadLocal 是很安全的，如果当前使用到的principal需要在请求处理完之后被清空（Spring Security自动处理）。
-
+最基础的对象是 SecurityContextHolder，这是我们在应用中存储当前安全细节的地方，包含了当前在应用中使用到的principal（通过认证的用户）细节。默认情况下， SecurityContextHolder 使用一个 ThreadLocal 对象来存储这些细节，这表示对于在同一个线程中执行的方法，安全上下文(security context)都是可用的，即使安全上下文没有显式的当做方法的参数进行传递。通过这种方式使用 ThreadLocal 是很安全的，如果当前使用到的principal需要在请求处理完之后被清空（Spring Security自动处理）。
 一些应用并不完全适用使用一个 ThreadLocal，这需要考虑使用线程完成工作的方式。可以通过2种方式来实现默认的安全策略( SecurityContextHolder.MODE_THREADLOCAL).第一种方式是设置系统属性，第二种方式是调用 SecurityContextHolder的静态方法。大部分应用不需要改变默认的配置。
 #### 获取当前用户信息
 在 SecurityContextHolder中我们存储了与系统交互的principal相关细节。Spring Security使用 Authentication 对象来描述这些信息。通常不需要自己创建 Authentication 对象，但是对于 Authentication对象的查询是非常常见的。你可以在应用中的任何地方使用以下代码块来获取当前已认证的用户的名字，例如：
@@ -31,7 +30,7 @@ String username = principal.toString();
 ```
 通过调用 getContext()方法返回的对象是 SecurityContext 接口的一个实例。这个对象被存储在 thread local里，Spring Security大部分的认证机制通过返回一个 UserDetails 实例作为 principal。
 ### UserDetailsService
-在上面的代码片段，我们需要注意的是可以从一个 Authentication 对象中获取一个principal。principal就是一个 Object而已。大部分情况下，可以强制转换为一个 UserDetails 对象。 UserDetails 是Spring Secuirty中的一个核心接口。它代表了一个principal，其是可扩展的并且是应用相关的。你可以认为UserDetails是你自己的用户数据与Spring Security在 SecurityContextHolder对象中需要使用到的用户数据的适配器。作为你自己的用户数据的某种表现，你会经常强制转换 UserDetails 为应用中原来提供的数据类型，因此你可以调用特定的业务方法，(例如getEmail(), getEmployeeNumber()等等)。<br>
+在上面的代码片段，我们需要注意的是可以从一个 Authentication 对象中获取一个principal。principal就是一个 Object而已。大部分情况下，可以强制转换为一个 UserDetails对象。UserDetails是Springsecuirty中的一个核心接口。它代表了一个principal，其是可扩展的并且是应用相关的。你可以认为UserDetails是你自己的用户数据与Spring Security在 SecurityContextHolder对象中需要使用到的用户数据的适配器。作为你自己的用户数据的某种表现，你会经常强制转换 UserDetails 为应用中原来提供的数据类型，因此你可以调用特定的业务方法，(例如getEmail(), getEmployeeNumber()等等)。<br>
 到现在你可能想知道，什么时候我应该提供一个 UserDetails 对象？如何来做？简单的回答是有一个特定的接口 UserDetailsService。这个接口中定义的唯一的方法接受一个String类型的用户名参数，返回 UserDetails对象。
 ```
 UserDetails loadUserByUsername(String username) throws UsernameNotFoundException;
@@ -69,7 +68,7 @@ UserDetailsService，用来根据传递的字符串形式的用户名(或者验�
 ### 直接设置SecurityContextHolder中的内容
 事实上，Spring Security并不关心你如何将 Authentication 对象放入 SecurityContextHolder中。唯一的关键要求是在 AbstractSecurityInterceptor 认证一个用户请求之前确保 SecurityContextHolder 包含一个用于表示principal的 Authentication 对象。因此可以编写自己的Filter或者MVC controller，来提供与那些不是基于Spring Security的验证系统的互操作能力。需要做的是编写一个过滤器，从某个位置读取第三方用户信息，构建一个特定的Spring Security Authentication 对象，并将其放入 SecurityContextHolder中。在这种情况下，需要考虑在内置的认证基础结构上自动应用这些。例如，你可能需要在返回给客户端响应之前，预先创建一个Http Session对象来为不同线程缓存安全上下文。
 ## 3. Spring Security中的访问控制(授权)
-Spring Security中负责做出访问控制决定的主要接口是 AccessDecisionManager，其有一个 decide 方法，接受一个描述principal的 Authentication 对象，一个“security object”和一个应用于这个对象的安全元数据属性列表(例如访问一个资源必须被授予的角色列表)。
+Spring Security中负责做出访问控制决定的主要接口是 AccessDecisionManager，其有一个 decide 方法，接受一个描述principal的 Authentication 对象，一个“security object”和一个应用于这个对象的安全元数据属性列表(例如访问一个资源必须被授予的角色列表,资源权限表在下一节中会重点用到，改变它的加载类)。
 ## 4. 核心服务
 现在我们已经在较高的层面对SpringSecuirty的架构和核心类有所了解，现在我们来仔细的查看一到两个其核心接口的实现，特别是AuthenticationManager、UserDetailsService 和AccessDecisionManager。这三个接口会贯穿我们后面文档中的所有内容，因此掌握他们是如何配置以及使用是非常重要的。
 
@@ -95,11 +94,11 @@ PasswordEncoder 是可选的。PasswordEncoder 提供了对通过UserDetailsServ
 
 ### UserDetailsService实现（本块前面已有涉及）
 
-像本教程之前提到的一样，大部分验证provider都利用了UserDetails 和UserDetailsService 接口。回顾一下UserDetailsService 中只定义了一个方法：
+像之前提到的一样，大部分验证provider都利用了UserDetails 和UserDetailsService 接口。回顾一下UserDetailsService 中只定义了一个方法：
 ```
 UserDetails loadUserByUsername(String username) throws UsernameNotFoundException;
 ```
-返回的UserDetails 也是一个接口，其只提供了getters方法来保证用户的验证信息例如用户名、密码和被授予的权利等不会因为用户账号的禁用或者启用而被置为空。大部分验证提供者都会使用UserDetailsService，即使username和password在验证过程中不需要使用到。他们也可能只使用UserDetails 对象中GrantedAuthority 信息。因为一些其他的系统(例如 LDAP or X.509 or CAS)接管了验证用户信息的责任。
+返回的UserDetails 也是一个接口，其只提供了getters方法来保证用户的验证信息例如用户名、密码和被授予的权利等不会因为用户账号的禁用或者启用而被置为空。大部分验证提供者都会使用UserDetailsService，即使username和password在验证过程中不需要使用到。他们也可能只使用UserDetails 对象中GrantedAuthority 信息。因为一些其他的系统(例如 LDAP or X.509 or CAS)接管了验证用户信息的责任。<br>
 Spring Security已经提供一些基础的实现，下面我们将会进行介绍。
 #### 基于内存的验证
 我们很容易就可以创建一个自定义的UserDetailsService 实现，从我们的持久化引擎中提取信息，但是很多应用并不需要这么复杂。特别是我们在创建一个样本应用(prototype application)，或者仅仅是为了继承Spring Security时更是如此，这个时候我们并不想花费时间时间来配置数据库或者编写的UserDetailsService实现。对于这种情形，一个简单的选择是使用命名空间中的user-service元素。

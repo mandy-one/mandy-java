@@ -179,7 +179,7 @@ create table persistent_logins (username varchar(64) not null,
      "JSESSIONID=;Path=/tutorial;Expires=Thu, 01 Jan 1970 00:00:00 GMT"
 </LocationMatch>
 ```
-**1. 当前session控制**<br>
+**2. 当前session控制**<br>
 如果你想限制只有一个用户可以登录你的应用，Spring Security通过以下的简单附加配置对此提供支持。首先你需要在你的web.xml文件中添加以下的监听器来保证session生命周期事件发生时Spring Security被更新。
 ```
 <listener>
