@@ -127,7 +127,7 @@ base64(username+":"+expirationTime+":"+md5Hex(username+":"+expirationTime+":"+pa
 ```
 <remember-me key="elim"/>
 ```
-这里有两个需要注意的地方。一，如果你的登录页面是自定义的，那么需要在登录页面上新增一个名为 “_spring_security_remember_me” 的 checkbox;二，上述功能需要一个 UserDetailsService，如果在你的 ApplicationContext 中已经拥有一个了，那么 Spring Security 将自动获取；如果没有，需要定义一个；如果拥有在 ApplicationContext 中拥有多个 UserDetailsService 定义，那么需要通过 remember-me 元素的 user-service-ref 属性指定将要使用的那个。<br>
+这里有两个需要注意的地方。一，如果你的登录页面是自定义的，那么需要在登录页面上新增一个名为 “_spring_security_remember_me” 的 checkbox;二，上述功能需要一个 UserDetailsService，如果在你的 ApplicationContext 中已经拥有一个了，那么 Spring Security 将自动获取；如果没有，需要定义一个；如果在ApplicationContext中拥有多个 UserDetailsService 定义，那么需要通过 remember-me 元素的 user-service-ref 属性指定将要使用的那个。<br>
 **基于持久化 token 的方法（推荐）**<br>
 使用持久化 token 方法时需要我们的数据库中拥有如下表及其表结构。
 ```
