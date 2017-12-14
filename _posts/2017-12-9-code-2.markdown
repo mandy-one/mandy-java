@@ -1,156 +1,131 @@
 ---
 layout: post
-title:  "SpringSecurity(一)"
+title:  "SpringSecurity(二)"
 description: 用户权限与资源权限全部写在配置文件中
 categories: code
 author: mandy-one
 ---
-# SpringSecurity(一)
-## 方法一：不用数据库，全部数据写在配置文件
-web.xml在springmvc基础上需增加配置：
-``` javascript
-<!-- spring配置文件位置 -->
-<context-param>
-<param-name>contextConfigLocation</param-name>
-<param-value>classpath:applicationContext.xml,classpath:spring-security.xml</param-value>
-</context-param>
+#最小化springsecurity配置下的静态数据登陆实现
+本节及下节我们将学习springsecurity的基本配置及重要属性配置，根据其命名空间说明进行配置，重在应用，框架原理我们将在后面章节介绍，在此，我们首先通过静态数据实例熟悉其都有哪些常用属性，熟悉本框架功能，在学会简单应用及成功运行基础上对本框架建立初步认识，而后对其原理进行解析，实现更深层次的应用。
+### 第一步：web应用的入口：web.xml配置文件
+Spring Secuirty是在Filter中进行权限验证，一定要声明过滤器配置，在此之前需要首先加载配置文件。<br>
+首先加载security配置文件：
 
-<!-- spring核心监听器 -->
-<listener>
-<listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
-</listener>
-<!-- spring security定义一个 filter 用来拦截需要交给 Spring Security 处理的请求，需要注意的是该 filter 一定要定义在其它如 SpringMVC 等拦截请求之前 -->
-<filter>
-<filter-name>springSecurityFilterChain</filter-name>
-<filter-class>org.springframework.web.filter.DelegatingFilterProxy
-</filter-class>
-</filter>
+    <context-param>
+        <param-name>contextConfigLocation</param-name>
+        <param-value>classpath:securityConfig.xml</param-value>
+    </context-param>
 
-<filter-mapping>
-<filter-name>springSecurityFilterChain</filter-name>
-<url-pattern>/*</url-pattern>
-<filter-mapping>
+然后配置spring容器监听，用来加载上面配置的securityConfig.xml文件：
+
+    <listener>
+        <listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+    </listener>
+
+最后声明过滤器的配置：
+
+    <filter>
+        <filter-name>springSecurityFilterChain</filter-name>
+        <filter-class>org.springframework.web.filter.DelegatingFilterProxy</filter-class>
+    </filter>
+
+    <filter-mapping>
+        <filter-name>springSecurityFilterChain</filter-name>
+        <url-pattern>/*</url-pattern>
+    </filter-mapping>
+
+通过查看DelegatingFilterProxy源码操作可以看到这三块配置之间的关系：
+
+      public void doFilter(ServletRequest request, ServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+              Filter delegateToUse = this.delegate;//通过bean方式定义的filter为要用的过滤器
+              if (delegateToUse == null) {//要用的过滤器为空，则去找bean方式定义的filter
+                  Object var5 = this.delegateMonitor;
+                  synchronized(this.delegateMonitor) {
+                      if (this.delegate == null) {
+                        //bean方式定义的filter为空，则去加载其配置文件，即securityConfig.xml
+                          WebApplicationContext wac = this.findWebApplicationContext();
+                          if (wac == null) {//配置文件为空，则抛异常
+                              throw new IllegalStateException("No WebApplicationContext found: no
+                              ContextLoaderListener registered?");  
+                          }
+                          this.delegate = this.initDelegate(wac);//通过配置文件以bean方式定义filter
+                      }
+                      delegateToUse = this.delegate;//取得通过bean方式定义的filter
+                  }
+              }
+              this.invokeDelegate(delegateToUse, request, response, filterChain);//重调doFilter
+          }
+
+DelegatingFilterProxy 是Spring框架的一个类，会将过滤操作委派给一个在application context中以spring bean方式定义的Filter,作用于应用中的每个URL。在这个案例中，bean的名字(targetBeanName)是" springSecurityFilterChain"，这是由命名空间创建的一个用来处理web安全的内部基础bean 。注意，你自己不应该使用这个bean的名称。一旦将这个添加到web.xml，就可以开始编辑application context文件。Web安全服务通过http元素进行配置，http元素是所有web相关的命名空间元素的父元素。
+### 第二步：security application context配置文件
+#### 命名空间配置
+设计命名空间的作用是用来在一个应用中捕获框架的大部分公共配置，并提供一个简练的语法来使其生效。Spring框架2.0版本开始就已经支持命名空间配置。这允许你在spring bean配置文件中使用由附加的xml schema文件中定义的元素。<br>
+位于某个命名空间中的元素可以允许我们通过更加简洁的方式来配置个别Bean，可以定义更加符合某个问题领域的配置语法，对用户隐藏底层实现的复杂性。一个简单的元素可能隐含的意味着大量的Bean和处理步骤被添加到application context中。在许多案例中，我们会经常使用"security"作为默认的命名空间而不是"beans"，这意味着我们可以省略所有security命名空间元素的前缀，让内容更加容易阅读。如果你把你的application context配置切分成了不同的文件，并在其中一个文件中进行大部分的security相关配置，你可能也希望这样做。<br>
+#### security application context配置文件：
+
+    <beans:beans xmlns="http://www.springframework.org/schema/security"
+    xmlns:beans="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans
+                    http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+                    http://www.springframework.org/schema/security
+                    http://www.springframework.org/schema/security/spring-security.xsd">
+            ...
+    </beans:beans>
+
+
+#### securityConfig.xml
+1. 一个最小化的http配置
 ```
-
-Spring-security.xml:
-``` javascript
-<?xml version="1.0" encoding="UTF-8"?>
-<beans
-        xmlns="http://www.springframework.org/schema/beans"
-
-        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xmlns:security="http://www.springframework.org/schema/security"
-        xmlns:jdbc="http://www.springframework.org/schema/jdbc"
-        xmlns:context="http://www.springframework.org/schema/context"
-        xsi:schemaLocation="http://www.springframework.org/schema/beans
-         http://www.springframework.org/schema/beans/spring-beans-4.1.xsd
-         http://www.springframework.org/schema/security
-         http://www.springframework.org/schema/security/spring-security-4.1.xsd http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc.xsd http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd">
-         <!--登录界面不需权限验证-->
-    <security:http pattern="/loginPage" security="none"></security:http>
-    <security:http auto-config="true">
-         <!--配置资源权限-->
-        <security:intercept-url pattern="/admin" access="hasRole('ROLE_ADMIN')"/>
-        <security:intercept-url pattern="/**" access="hasRole('ROLE_USER')"/>
-        <!--配置登陆界面、验证成功处理类、验证失败界面、登出界面-->
-        <!--框架默认在认证完成后跳转到登陆前请求的url，通过在security中配置验证成功后的处理类来实现不同用户的不同跳转页面-->
-        <security:form-login login-page="/loginPage" login-processing-url="/login" authentication-success-handler-ref="MyAuthenticationSuccessHandler"
-                    authentication-failure-url="/loginPage?error=error"/>
-        <security:logout logout-url="/logout" logout-success-url="/loginPage" invalidate-session="true"/>
-        <!--保存session-->
-        <security:remember-me key="authorition"/>
-        <security:csrf disabled="true"/>
-    </security:http>
-    <bean id="MyAuthenticationSuccessHandler" class="cn.myproject.security.MyAuthenticationSuccessHandler"/>
-<!--配置用户权限-->
-    <security:authentication-manager>
-        <security:authentication-provider>
-            <security:user-service>
-                <security:user name="user" password="user" authorities="ROLE_USER"/>
-                <security:user name="admin" password="admin" authorities="ROLE_USER, ROLE_ADMIN"/>
-            </security:user-service>
-        </security:authentication-provider>
-    </security:authentication-manager>
-</beans>
+    <http>
+    <intercept-url pattern="/**" access="hasRole('USER')" />
+    <form-login />
+    <logout />
+    </http>  
 ```
-applicationContext.xml:不需要连接数据库获取数据，此方法中不需配置；<br>
-验证成功处理类MyAuthenticationSuccessHandler:
+  //Container element for HTTP security configuration. Multiple elements can now be defined,each with a specific pattern to which the enclosed security configuration applies. A pattern can also be configured to bypass Spring Security's filters completely by setting the "security" attribute to "none".<br>
+  //Specifies the access attributes and/or filter list for a particular set of URLs.<br>
+  //Sets up a form login configuration for authentication with a username and password.<br>
+  //Incorporates a logout processing filter. Most web applications require a logout filter,although you may not require one if you write a controller to provider similar logic.  
 
-``` javascript
-package cn.myproject.security;
+ //HTTP安全配置的容器元素。现在可以定义多个元素，每个元素都有一个特定的模式，其中包含了封闭的安全配置。还可以配置一个模式，通过将“Security”属性设置为“none”，从而完全绕过Spring Security的过滤器，在后面我们通常以此配置自定义的登陆页面。<br>
+ //设置一个表单登录配置，以使用用户名和密码进行身份验证。<br>
+ //为特定组或多个url指定访问属性和/或筛选列表。<br>
+ //包含一个注销处理过滤器。大多数web应用程序都需要一个注销过滤器，也可以自己编写。
+这段配置表明访问所有URL都要被保护都需要ROLE\_USER角色（权限），使用包含用户名和密码的表单登录，注册一个注销的URL退出登录。<intercept-url>元素定义了 pattern ，使用ant路径的风格来匹配输入请求的URL，也可以使用正则表达式匹配作为替代；access 属性定义了匹配上了指定partten的请求需要的角色。在默认的配置中，这通常是一个逗号分隔的角色列表，用户必须具有其中的一个角色才被允许完成请求，“ ROLE_”前缀是一个必有的标记可以使用多个。 <intercept-url>元素来为不同的URL定义不同的访问要求，但是他们将会按照列出顺序被调用，第一个匹配上的将会使用，即使后面的可以匹配上也不会被使用，也可以添加一个 method 属性来限制匹配特定的HTTP方法(如： GET, POST, PUT)。
+2. 要添加一些用户，可以在命名空间中直接定义一些静态测试数据：
 
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
+    <authentication-manager>
+      <authentication-provider>
+            <user-service>
+            <user name="admin" password="admin" authorities="ROLE_USER, ROLE_ADMIN" />
+            <user name="user" password="user" authorities="ROLE_USER" />
+            </user-service>
+       </authentication-provider>
+    </authentication-manager>
 
-public class MyAuthenticationSuccessHandler implements AuthenticationSuccessHandler {
+这段配置为应用定义了两个用户、密码、角色。通过 user-service的 properties 属性我们也可以从一个标准的properties文件中加载用户的信息，应遵循如下格式：
 
-    @Override
-    public void onAuthenticationSuccess(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse, Authentication authentication) throws IOException, ServletException {
-        Collection<? extends GrantedAuthority> authorities=new ArrayList<GrantedAuthority>();
-        Object principal = authentication.getPrincipal();
-        if (principal instanceof UserDetails) {
-            authorities = ((UserDetails)principal).getAuthorities();
-        }
+    #username=password,grantedAuthority[,grantedAuthority][,enabled|disabled]。
 
-        if(authorities.toString().contains("ROLE_ADMIN"))
-        {
-            httpServletResponse.sendRedirect("admin");
-        }else if(authorities.toString().contains("ROLE_USER")){
-            httpServletResponse.sendRedirect("user");
-        }
+使用 <authentication-provider>元素，用户信息将会被  authentication manager用于处理认证请求，可以有多个 <authentication-provider>元素来定义不同的认证源，将会按顺序进行调用，也可以为authentication manager定义别名。
+配置完securityConfig.xml中这两项，由于我们没有显式的设定一个登录界面的URL，Spring Security将基于我们开启的特性自动生成一个，并且提供标准的URL值来处理提交的登录请求以及用户登录成功后的默认跳转的目标URL等等。
 
-    }
-}
+
+#### 事实上，以下代码：
+
+    <http auto-config="true">
+            <intercept-url pattern="/**" access="hasRole('USER')" />
+    </http>
+
+可以代替步骤1中配置，使用auto-config="true"，一个遗留属性，它自动注册一个登录表单、基本身份验证和注销URL和注销服务,即相当于以下配置：
 ```
-Controller配置如下：
-LoginController:
-``` javascript
-package cn.myproject.controller;
-
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-
-
-@Controller
-public class LoginController {
-
-    @RequestMapping(value = "/loginPage", method = RequestMethod.GET)
-    public String loginPage(@RequestParam(value = "error",required = false)String error,Model model) {
-        if(error!= null) {
-            return "login-failure";
-        }
-        return "login";
-    }
-}
+<http>
+  <form-login/>
+  <http-basic/>
+  <logout/>
+</http>
 ```
-HelloController:
-``` javascript
-package cn.myproject.controller;
-
-import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-@Controller
-public class HelloController {
-    @RequestMapping(value={"/admin"},method= RequestMethod.GET)
-    public String admin(){
-        return "admin" ;
-    }
-    //访客页面
-    @RequestMapping(value={"/user"},method= RequestMethod.GET)
-    public String user(){
-        return "user" ;
-    }
-}
-```
+如果未指定，则默认为“false”，推荐使用步骤1中配置，更具有可读性。
+### 第三步：springmvc框架基础上的springsecurity简单实现
+至此，在完成springmvc的基础配置（即web.xml及springmvcConfig）的基础上，根据springsecurity（一）中正确导入jar包或引入依赖，在web.xml添加spring security配置，同时配置好securityConfig.xml，即可实现该模块默认的简单实例。

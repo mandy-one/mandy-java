@@ -1,17 +1,28 @@
 ---
 layout: post
-title:  "SpringSecurity综述"
-description: 使用方法根据数据来源分类
+title:  "SpringSecurity（一）"
+description: SpringSecurity综述
 categories: code
 author: mandy-one
 ---
 # SpringSecurity综述
-## 使用方法根据数据来源分类
-在Springmvc框架下利用SpringSecurity实现权限管理，此处权限涉及用户拥有权限及资源所需权限。
-根据 [博客](http://blog.csdn.net/u012367513/article/details/38866465)
-及[极客学院教程](http://wiki.jikexueyuan.com/project/spring-security/)
-根据数据来源不同用三种方法对SpringSecurity进行应用：
+## SpringSecurity简述
+* SpringSecurity用于提供应用级别的安全。<br>
+应用级别的安全主要为“认证（Authentication）”和“授权（Authorization）”两个部分。<br>
+ “ Authentication ”指的是为用户建立一个他所声明的主体。主体一般是指用户，设备或可以在系统中执行动作的其他系统。<br>
+ " Authorization "指的是指的是一个用户能否在应用中执行某个操作，在到达授权判断之前，身份的主体已经由身份验证过程建立。<br>
+在认证(Authentication )层面， Spring Security 提供了不同的验证模型，且支持对验证方式的整合，可以灵活的选择验证模型。<br>
+在授权方面， Spring Security 也提供了一系列的授权能力。要感兴趣的是以下三个方面：对web请求进行授权、授权某个方法是否可以被调用、授权访问单个领域对象实例。<br>
+* Spring Security对Web安全性的支持大量地依赖于Servlet过滤器。这些过滤器拦截进入请求，并且在应用程序处理该请求之前进行某些安全处理。 Spring Security提供有若干个过滤器，它们能够拦截Servlet请求，并将这些请求转给认证和访问决策管理器处理，从而增强安全性。根据自己的需要，可以使用适当的过滤器来保护自己的应用程序。<br>
 
-* 用户权限与资源权限全部写在配置文件中
-* 用户权限从数据库获取
-* 用户权限与资源权限均从数据库获取
+# SpringSecurity模块
+一般情况下，spring-securit-core和spring-securit-config都会引入，在web开发中，我们通常还会引入spring-security-web。
+* Core - spring-security-core.jar：包含核心的 authentication 和authorization 的类和接口，远程支持和基础配置API。任何使用 Spring Security的应用都需要引入这个jar。
+支持本地应用，远程客户端，method级别的安全和JDBC用户配置。主要包含的top package为：<br>
+ org.springframework.security.core-->核心<br>
+ org.springframework.security.access-->访问，即authorization 的作用<br>
+ org.springframework.security.authentication-->验证<br>
+ org.springframework.security.provisioning-->配置<br>
+* Config - spring-security-config.jar：包含security namespace的解析代码，如果你使用Spring Security XML进行安全配置，你需要引入这个jar。
+* Web - spring-security-web.jar：包含filters和相关web安全的基础代码。如果我们需要使用 Spring Security 进行web安全验证和基于URL的访问控制。<br>
+项目源码：可使用git命令git clone https://github.com/spring-projects/spring-security.git

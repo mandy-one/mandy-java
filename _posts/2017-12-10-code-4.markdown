@@ -1,275 +1,132 @@
 ---
 layout: post
-title:  "SpringSecurity(三)"
-description: 用户权限与资源权限均从数据库获取
+title:  "SpringSecurity(四)"
+description: 架构与实现
 categories: code
 author: mandy-one
 ---
-# SpringSecurity(三)
-## 方法三：用户权限与资源权限均从数据库获取
-spring security和Acegi不同，它不能修改默认filter了，但支持插入filter，所以根据这个，我们可以插入自己的filter来灵活使用，此处主要在方法二基础上实现资源所需权限的数据库存储。
-在security中增加自己的filter：
-``` javascript
-<custom-filter ref="myFilter" before="FILTER_SECURITY_INTERCEPTOR" />
+# 架构与实现
+<!--一旦你熟悉了如何创建和运行基于命名空间配置的应用，你可能希望了解框架是如何运行在命名空间的基础上的。像很多软件一样，Spring Security有一些核心接口，类和概念的抽象贯穿整个框架。在这部分，我们将会查看在Spring Secuirty中，这些是如何一起工作来支持认证和访问控制。
+<!-- ## 运行时环境
+Spring Security 3.0需要Java 5.0或者更高的版本。由于Spring Security致力于以一种自包含的方式运行，因此没有必要在Java运行时环境中放置任何特别的配置文件。特别的，这是指不需要配置 JAAS策略文件，或者将Spring Specurity放置到公用的class path路径下。
+
+类似的，如果你使用一个EJB容器或者Servlet容器，同样也不需要放置任何特殊的配置文件。所有需要的配置文件都包含在我们的应用中。
+
+这种设计方式提供了最大程度上的部署时的灵活性，你只需要简单的从一个操作系统中拷贝的你的部署构件(jar、war或者ear)到另外一个，它就可以立即正常工作。 -->
+## 1. 核心组件
+### SecurityContextHolder, SecurityContext 和 Authentication 对象
+
+* 最基础的对象是 SecurityContextHolder，这是我们在应用中存储当前安全细节的地方，包含了当前在应用中使用到的principal（通过认证的用户）细节。默认情况下， SecurityContextHolder 使用一个 ThreadLocal 对象来存储这些细节，这表示对于在同一个线程中执行的方法，安全上下文(security context)都是可用的，即使安全上下文没有显式的当做方法的参数进行传递。通过这种方式使用 ThreadLocal 是很安全的，如果当前使用到的principal需要在请求处理完之后被清空（Spring Security自动处理）。
+
+一些应用并不完全适用使用一个 ThreadLocal，这需要考虑使用线程完成工作的方式。可以通过2种方式来实现默认的安全策略( SecurityContextHolder.MODE_THREADLOCAL).第一种方式是设置系统属性，第二种方式是调用 SecurityContextHolder的静态方法。大部分应用不需要改变默认的配置。
+#### 获取当前用户信息
+在 SecurityContextHolder中我们存储了与系统交互的principal相关细节。Spring Security使用 Authentication 对象来描述这些信息。通常不需要自己创建 Authentication 对象，但是对于 Authentication对象的查询是非常常见的。你可以在应用中的任何地方使用以下代码块来获取当前已认证的用户的名字，例如：
 ```
-该filter必须包含如下三个属性:
-* authenticationManager为验证配置，认证管理器，实现用户认证的入口，需要改变认证的方式，我们可以实现自己的 AuthenticationProvider；如果需要改变认证的用户信息来源，我们可以实现 UserDetailsService，方法二中所用JdbcDaoImpl即是UserDetailsService一种实现，它从数据库中获取用户信息，且可获得组权限信息，若数据库结构改变可通过属性项usersByUsernameQuery、authoritiesByUsernameQuery 和 groupAuthoritiesByUsernameQuery调整sql语句；
-* accessDecisionManager为访问决策器，决定某个用户具有的角色，是否有足够的权限去访问某个资源；
-* securityMetadataSource为资源源数据定义，将所有的资源和权限对应关系建立起来，即定义某一资源可以被哪些角色（权限）访问
-``` javascript
-<bean:bean id="myFilter"
-      class="cn.myproject.security.MyFilterSecurityInterceptor">
-       <bean:property name="authenticationManager" ref="authenticationManager" />
-        <bean:property name="accessDecisionManager" ref="myAccessDecisionManagerBean" />
-       <bean:property name="securityMetadataSource" ref="securityMetadataSource" />
-    </bean:bean>
-```
-三个类均需在配置文件中配置好对应实现类。
-下面是拦截器及后两个实现类：
-MyFilterSecurityInterceptor：
-``` javascript
-package com.ccf.myproject.security;
-
-import org.springframework.security.access.SecurityMetadataSource;
-import org.springframework.security.access.intercept.AbstractSecurityInterceptor;
-import org.springframework.security.access.intercept.InterceptorStatusToken;
-import org.springframework.security.web.FilterInvocation;
-import org.springframework.security.web.access.intercept.FilterInvocationSecurityMetadataSource;
-
-
-import javax.servlet.*;
-import java.io.IOException;
-
-public class MyFilterSecurityInterceptor extends AbstractSecurityInterceptor implements Filter {
-    private FilterInvocationSecurityMetadataSource securityMetadataSource;
-    @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-        FilterInvocation fi = new FilterInvocation(request,response,chain);
-        invoke(fi);
-
-    }
-    private void invoke(FilterInvocation fi) throws IOException,ServletException{
-        InterceptorStatusToken token = super.beforeInvocation(fi);
-                try {
-                        //执行下一个拦截器
-                        fi.getChain().doFilter(fi.getRequest(), fi.getResponse());
-                        } finally {
-                            super.afterInvocation(token, null);
-                        }
-
-    }
-    @Override
-    public  SecurityMetadataSource obtainSecurityMetadataSource(){
-        return  this.securityMetadataSource;
-    }
-
-    public void setSecurityMetadataSource(FilterInvocationSecurityMetadataSource securityMetadataSource) {
-        this.securityMetadataSource = securityMetadataSource;
-    }
-
-    public FilterInvocationSecurityMetadataSource getSecurityMetadataSource() {
-        return securityMetadataSource;
-    }
-    @Override
-    public void destroy() {
-
-    }
-
-    @Override
-    public void init(FilterConfig filterConfig) throws ServletException {
-
-    }
-    @Override
-    public Class<? extends Object> getSecureObjectClass() {
-        return FilterInvocation.class;
-    }
+Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+if (principal instanceof UserDetails) {
+String username = ((UserDetails)principal).getUsername();
+} else {
+String username = principal.toString();
 }
 ```
-MyaccessDecisionManager：
-``` javascript
-package com.ccf.myproject.security;
-
-import org.springframework.security.access.AccessDecisionManager;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.access.ConfigAttribute;
-import org.springframework.security.access.SecurityConfig;
-import org.springframework.security.authentication.InsufficientAuthenticationException;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-
-import java.util.Collection;
-import java.util.Iterator;
-
-public class MyAccessDecisionManager implements AccessDecisionManager {
-    //检查用户是否够权限访问资源
-    //参数authentication是从spring的全局缓存SecurityContextHolder中拿到的，里面是用户的权限信息
-    //参数object是url
-    //参数configAttributes所需的权限
-    public void decide(Authentication authentication, Object object,
-                       Collection<ConfigAttribute> configAttributes)
-            throws AccessDeniedException, InsufficientAuthenticationException {
-        if(configAttributes == null){
-            return;
-        }
-
-        Iterator<ConfigAttribute> ite=configAttributes.iterator();
-        while(ite.hasNext()){
-            ConfigAttribute ca=ite.next();
-            String needRole=((SecurityConfig)ca).getAttribute();
-            for(GrantedAuthority ga : authentication.getAuthorities()){
-                if(needRole.equals(ga.getAuthority())){
-
-                    return;
-                }
-            }
-        }
-        //注意：执行这里，后台是会抛异常的，但是界面会跳转到所配的access-denied-page页面
-        throw new AccessDeniedException("no right");
-    }
-    public boolean supports(ConfigAttribute attribute) {
-        return true;
-    }
-    public boolean supports(Class<?>clazz) {
-        return true;
-    }
-}
+通过调用 getContext()方法返回的对象是 SecurityContext 接口的一个实例。这个对象被存储在 thread local里，Spring Security大部分的认证机制通过返回一个 UserDetails 实例作为 principal。
+### UserDetailsService
+在上面的代码片段，我们需要注意的是可以从一个 Authentication 对象中获取一个principal。principal就是一个 Object而已。大部分情况下，可以强制转换为一个 UserDetails 对象。 UserDetails 是Spring Secuirty中的一个核心接口。它代表了一个principal，其是可扩展的并且是应用相关的。你可以认为UserDetails是你自己的用户数据与Spring Security在 SecurityContextHolder对象中需要使用到的用户数据的适配器。作为你自己的用户数据的某种表现，你会经常强制转换 UserDetails 为应用中原来提供的数据类型，因此你可以调用特定的业务方法，(例如getEmail(), getEmployeeNumber()等等)。<br>
+到现在你可能想知道，什么时候我应该提供一个 UserDetails 对象？如何来做？简单的回答是有一个特定的接口 UserDetailsService。这个接口中定义的唯一的方法接受一个String类型的用户名参数，返回 UserDetails对象。
 ```
-MysecurityMetadataSource:
-``` javascript
-package com.ccf.myproject.security;
-
-import com.ccf.myproject.po.Resource;
-import com.ccf.myproject.service.AntUrlPathMatcher;
-import com.ccf.myproject.service.UrlAuthorityServiceImpl;
-import com.ccf.myproject.service.UrlMatcher;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.access.ConfigAttribute;
-import org.springframework.security.web.FilterInvocation;
-import org.springframework.security.web.access.intercept.FilterInvocationSecurityMetadataSource;
-
-import java.util.*;
-
-public class MySecurityMetadataSource implements FilterInvocationSecurityMetadataSource {
-    private UrlMatcher urlMatcher = new AntUrlPathMatcher();
-    private static Map<String, Collection<ConfigAttribute>> resourceMap = null;
-@Autowired
-    private UrlAuthorityServiceImpl urlAuthorityServiceImpl;
-    public MySecurityMetadataSource(UrlAuthorityServiceImpl urlAuthorityServiceImpl) throws Exception {
-        this.urlAuthorityServiceImpl=urlAuthorityServiceImpl;
-        loadResourceDefine();
-    }
-    private void loadResourceDefine() throws Exception {
-        if (resourceMap == null) {
-            resourceMap = new HashMap<String, Collection<ConfigAttribute>>();
-            List<Resource> resources = urlAuthorityServiceImpl.findAllUrl();
-            // 加载资源对应的权限
-            for (Resource resource : resources) {
-                Collection<ConfigAttribute> auths = urlAuthorityServiceImpl
-                        .loadRoleByResource(resource.getResource());
-                resourceMap.put(resource.getResource(), auths);
-            }
-        }
-
-    }
-    @Override
-    public Collection<ConfigAttribute> getAttributes(Object object) throws IllegalArgumentException {
-        String url = ((FilterInvocation)object).getRequestUrl();
-        Iterator<String> ite = resourceMap.keySet().iterator();
-        while (ite.hasNext()) {
-            String resURL = ite.next();
-            if (urlMatcher.pathMatchesUrl(resURL, url)) {
-                return resourceMap.get(resURL);
-            }
-        }
-        return null;
-    }
-
-    @Override
-    public Collection<ConfigAttribute> getAllConfigAttributes() {
-        return null;
-    }
-
-    @Override
-    public boolean supports(Class<?> aClass) {
-        return true;
-    }
-}
+UserDetails loadUserByUsername(String username) throws UsernameNotFoundException;
 ```
-applicationContext.xml:
-``` javascript
-<?xml version="1.0" encoding="UTF-8"?>
+这是在Spring Secuirty中加载用户信息最常用的方式，并且你将会看到在框架中任何需要获取一个用户的信息的时候使用的都是这种方式。
 
-<beans xmlns="http://www.springframework.org/schema/beans"
-       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:mvc="http://www.springframework.org/schema/mvc"
-       xmlns:context="http://www.springframework.org/schema/context"
-       xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
-       xsi:schemaLocation="http://www.springframework.org/schema/beans
-    http://www.springframework.org/schema/beans/spring-beans-3.2.xsd
-    http://www.springframework.org/schema/mvc
-    http://www.springframework.org/schema/mvc/spring-mvc-3.2.xsd
-    http://www.springframework.org/schema/context
-    http://www.springframework.org/schema/context/spring-context-3.2.xsd
-    http://www.springframework.org/schema/aop
-    http://www.springframework.org/schema/aop/spring-aop-3.2.xsd
-    http://www.springframework.org/schema/tx
-    http://www.springframework.org/schema/tx/spring-tx-3.2.xsd">
+在认证成功的情况下， UserDetails 被用来构建 Authentication 对象，并存储在 SecurityContextHolder 中。一个好消息是我们已经提供了大量的 UserDetailsService 的实现，包括使用内存中的map( InMemoryDaoImpl)，和使用JDBC（ JdbcDaoImpl）。尽管如此，大部分用户倾向于基于使用应用中已经存在的用于描述员工、客户或者其他类型用户的数据访问对象(Data Access Object )来编写他们自己的实现。无论UserDetailsService 返回类型是什么，总是可以在 SecurityContextHolder 中通过以上的代码片段来获取。<br>
+提示：读者经常会对 UserDetailsService产生疑惑。它是一个纯粹用于获取用户数据的DAO，除了提供框架中其他组件需要的数据,没有任何其他功能，并不验证用户，验证是通过 AuthenticationManager完成。如果我们需要自定义的验证过程，需要直接实现 AuthenticationProvider。
+### GrantedAuthority
+除了principal， Authentication 提供的另一个重要的方法是 getAuthorities()。这个方法用于提供一个 GrantedAuthority 对象数组。 GrantedAuthority 表示的是授予当前的 principal权利。这些权利通常是角色("roles")，例如 ROLE_ADMINISTRATOR 或者 ROLE_HR_SUPERVISOR。这些角色的配置是为了接下来的web授权、方法授权和域对象授权。Spring Security的其他部分可以解析角色中权利，执行某些操作时必须拥有这些权利。 GrantedAuthority 对象通常通过 UserDetailsService加载，是整个应用范围的权利许可，并不是针对于某个特定的领域对象。。<br>
+### 总结
+这里仅仅是简要概括，目前我们所看到的Spring Security的主要组成部分是：
+SecurityContextHolder，提供对 SecurityContext的访问
+SecurityContext，维护了 Authentication 和可能的特定请求的安全信息
+Authentication，以Spring Security的方式描述principal。
+GrantedAuthority，表示在应用范围内授予principal的权利许可。
+UserDetailsService，用来根据传递的字符串形式的用户名(或者验证id等类似信息)来创建 UserDetails 对象。
+现在你已经对这些总是被重复使用的组件有所理解，让我们来更进一步查看认证的过程。
+## 2. 认证
+### Spring Security中的验证authentication 到底是什么？
+让我们考虑一个每个人都熟悉的标准认证场景：
+1. 一个用户被提示使用用户名和密码登录
+2. 系统成功的验证了用户名与密码是匹配的
+3. 获取到用户的上下文信息(角色列表等)
+4. 建立这个用户的安全上下文(security context )
+5. 用户可能继续进行一些受到访问控制机制保护的操作，访问控制机制会依据当前安全上下文信息检查这个操作所需的权限。
+前三条组成了认证过程，因此我们要看一下在Spring Security中这是如何发生的：
+1. 用户名和密码被获取到，并放入一个 UsernamePasswordAuthenticationToken 实例中( Authentication接口的一个实例，我们之前已经看到过)。
+2. 这个token被传递到一个 AuthenticationManager 实例中进行认证（认证过程由AuthenticationProvider决定，可自定义）。
+3. 在成功认证后， AuthenticationManager返回一个所有字段都被赋值的 Authentication 对象实例。
+4. 通过调用 SecurityContextHolder.getContext().setAuthentication(…)创建安全上下文，通过返回的认证对象进行传递。
 
-    <!-- 第一步：配置数据源 -->
-    <context:property-placeholder location="classpath:jdbc.properties" />
-    <bean id="dataSource" class="org.springframework.jdbc.datasource.DriverManagerDataSource">
-        <property name="url" value="${jdbc.url}"></property>
-        <property name="driverClassName" value="${jdbc.driver}"></property>
-        <property name="username" value="${jdbc.username}"></property>
-        <property name="password" value="${jdbc.password}"></property>
-    </bean>
+从这个角度来说，用户被认为已经成功认证。
+在Spring Security中构建认证过程是非常简单的，用户在 SecurityContextHolder 包含了一个完整Authentication的时候被认证。
+### 直接设置SecurityContextHolder中的内容
+事实上，Spring Security并不关心你如何将 Authentication 对象放入 SecurityContextHolder中。唯一的关键要求是在 AbstractSecurityInterceptor 认证一个用户请求之前确保 SecurityContextHolder 包含一个用于表示principal的 Authentication 对象。因此可以编写自己的Filter或者MVC controller，来提供与那些不是基于Spring Security的验证系统的互操作能力。需要做的是编写一个过滤器，从某个位置读取第三方用户信息，构建一个特定的Spring Security Authentication 对象，并将其放入 SecurityContextHolder中。在这种情况下，需要考虑在内置的认证基础结构上自动应用这些。例如，你可能需要在返回给客户端响应之前，预先创建一个Http Session对象来为不同线程缓存安全上下文。
+## 3. Spring Security中的访问控制(授权)
+Spring Security中负责做出访问控制决定的主要接口是 AccessDecisionManager，其有一个 decide 方法，接受一个描述principal的 Authentication 对象，一个“security object”和一个应用于这个对象的安全元数据属性列表(例如访问一个资源必须被授予的角色列表)。
+## 核心服务
+现在我们已经在较高的层面对SpringSecuirty的架构和核心类有所了解，现在我们来仔细的查看一到两个其核心接口的实现，特别是AuthenticationManager、UserDetailsService 和AccessDecisionManager。这三个接口会贯穿我们后面文档中的所有内容，因此掌握他们是如何配置以及使用是非常重要的。
 
-    <!-- 第二步：创建sqlSessionFactory。生产sqlSession -->
-    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
-        <property name="dataSource" ref="dataSource"></property>
-        <property name="configLocation" value="classpath:sqlMapConfig.xml"></property>
-    </bean>
-    <!-- 配置mybatis接口代理开发
-      * 接口类名和映射文件必须同名
-      *　接口类和映射文件必须在同一个目录　下
-      * 映射文件namespace名字必须是接口的全类路径名
-      *　接口的方法名必须和映射Statement的ｉｄ一致
-     -->
-    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
-        <property name="basePackage" value="com.ccf.myproject.dao"></property>
-        <property name="sqlSessionFactoryBeanName" value="sqlSessionFactory"></property>
-    </bean>
+### AuthenticationManager, ProviderManager 与AuthenticationProvider
+AuthenticationManager 仅仅是一个接口，所以我们可以任意的选择去实现，AuthenticationManager 默认的实现类是ProviderManager ，ProviderManager 并不是自己直接对请求进行验证，而是将其委派给一个AuthenticationProvider 列表。列表中的每一个AuthenticationProvider 将会被依次查询其是否需要通过其进行验证。每个provider的验证结果只有两个情况：抛出一个异常或者完全填充一个Authentication 对象的所有属性。验证一个请求最常见的方式是加载对应的UserDetails 来检查用户输入的密码与其是否匹配。DaoAuthenticationProvider 使用的就是这种方式。被加载的UserDetails对象(包含了GrantedAuthority),在认证成功后，将会被用于填充的Authentication 对象，并且存储在SecurityContext中。
 
-    <!-- 第三步：事务 -->
-    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
-        <property name="dataSource" ref="dataSource"></property>
-    </bean>
-    <!-- 配置通知 -->
-    <tx:advice id="txAdvice" transaction-manager="transactionManager">
-        <tx:attributes>
-            <tx:method name="save*" propagation="REQUIRED" />
-            <tx:method name="update*" propagation="REQUIRED" />
-            <tx:method name="delete*" propagation="REQUIRED" />
-            <tx:method name="insert*" propagation="REQUIRED" />
-            <tx:method name="*" propagation="REQUIRED" />
-        </tx:attributes>
-    </tx:advice>
-    <import resource="spring-security.xml"/>
-</beans>
+如果使用基于命名空间的配置，将会框架内部自动创建并维护一个ProviderManager 对象，可以在命名空间的authentication provider元素中往ProviderManager对象中添加provider。在这种情下，不必在application context中声明一个ProviderManager Bean。如果有多个provider，他们将会被按顺序进行尝试(内部使用了一个List)，每个provider都可以尝试进行认证，或者简单的通过返回null来跳过认证。如果所有的provider都返回了null，ProviderManager 将会抛出一个ProviderNotFoundException异常。
+
+### 成功认证后删除验证信息
+从Spring Security 3.1之后，在请求认证成功后ProviderManager 将会删除Authentication 中的认证信息，这可以阻止一些敏感信息例如密码在不需要的时候还长时间保留。
+
+这可能会导致一些问题，例如你希望通过缓存user对象来提高一个无状态应用的性能。如果Authentication对象包含了位于缓存中的并且移除了认证信息的对象(例如UserDetails )的引用，那么就无法再继续使用缓存的对象来进行验证。在你使用缓存的时候，你需要考虑这个因素。一个显而易见的解决方案是，无论是在AuthenticationProvider 还是在缓存的实现中，在创建Authentication 对象的时候，将这个对象拷贝一份。或者你也可以禁用ProviderManager的eraseCredentialsAfterAuthentication属性。<br>
+### DaoAuthenticationProvider
+Spring Security提供了一个AuthenticationProvider 的简单实现DaoAuthenticationProvider，这也是框架最早支持的provider。它使用了一个UserDetailsService 来查询用户名、密码和GrantedAuthority 。其简单的通过比较封装了用户的密码信息的UsernamePasswordAuthenticationToken和通过UserDetailsService查询出来的用户的密码是否相同来验证用户。对于这个provider的配置非常简单。
 ```
-sqlMapConfig.xml:
-``` javascript
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE configuration PUBLIC  "-//mybatis.org//DTD Config 3.0//EN"
-        "http://mybatis.org/dtd/mybatis-3-config.dtd">
-<configuration>
-    <typeAliases>
-        <package name="com.ccf.myproject.po"/>
-        <package name="org.springframework.security.access"/>
-        <package name="org.springframework.security.core"/>
-    </typeAliases>
-    <mappers>
-        <mapper resource="com/ccf/myproject/dao/UrlAuthorityService.xml"></mapper>
-    </mappers>
-</configuration>
+<bean id="daoAuthenticationProvider"
+	class="org.springframework.security.authentication.dao.DaoAuthenticationProvider">
+	<property name="userDetailsService" ref="inMemoryDaoImpl"/>
+	<property name="passwordEncoder" ref="passwordEncoder"/>
+</bean>
 ```
-dao层、service层、controller层均是根据不同用户所要实现的功能来对应实现与数据库的交互了。
+PasswordEncoder 是可选的。PasswordEncoder 提供了对通过UserDetailsService查询返回的UserDetails 对象中的密码进行编码和解码的功能。
+
+### UserDetailsService实现（本块前面已有涉及）
+
+像本教程之前提到的一样，大部分验证provider都利用了UserDetails 和UserDetailsService 接口。回顾一下UserDetailsService 中只定义了一个方法：
+```
+UserDetails loadUserByUsername(String username) throws UsernameNotFoundException;
+```
+返回的UserDetails 也是一个接口，其只提供了getters方法来保证用户的验证信息例如用户名、密码和被授予的权利等不会因为用户账号的禁用或者启用而被置为空。大部分验证提供者都会使用UserDetailsService，即使username和password在验证过程中不需要使用到。他们也可能只使用UserDetails 对象中GrantedAuthority 信息。因为一些其他的系统(例如 LDAP or X.509 or CAS)接管了验证用户信息的责任。
+Spring Security已经提供一些基础的实现，下面我们将会进行介绍。
+#### 基于内存的验证
+我们很容易就可以创建一个自定义的UserDetailsService 实现，从我们的持久化引擎中提取信息，但是很多应用并不需要这么复杂。特别是我们在创建一个样本应用(prototype application)，或者仅仅是为了继承Spring Security时更是如此，这个时候我们并不想花费时间时间来配置数据库或者编写的UserDetailsService实现。对于这种情形，一个简单的选择是使用命名空间中的user-service元素。
+<user-service id="userDetailsService">
+    <user name="jimi" password="jimispassword" authorities="ROLE_USER, ROLE_ADMIN" />
+    <user name="bob" password="bobspassword" authorities="ROLE_USER" />
+</user-service>
+也支持使用一个外部属性文件
+```
+username=password,grantedAuthority[,grantedAuthority][,enabled|disabled]
+```
+属性文件的内容格式
+```
+username=password,grantedAuthority[,grantedAuthority][,enabled|disabled]
+```
+#### JdbcDaoImpl
+SpringSecurity同样包含了一个可以通过JDBC数据源获取验证的信息的UserDetailsService,下面是一个案例配置：
+```
+<bean id="dataSource" class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+    <property name="driverClassName" value="org.hsqldb.jdbcDriver"/>
+    <property name="url" value="jdbc:hsqldb:hsql://localhost:9001"/>
+    <property name="username" value="sa"/>
+    <property name="password" value=""/>
+</bean>
+<bean id="userDetailsService"
+	class="org.springframework.security.core.userdetails.jdbc.JdbcDaoImpl">
+    <property name="dataSource" ref="dataSource"/>
+</bean>
+```
+可以通过修改上面展示的DriverManagerDataSource 来使用不同的关系型数据库管理系统。
