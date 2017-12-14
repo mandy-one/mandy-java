@@ -25,9 +25,15 @@ author: mandy-one
 <http-basic />
 </http>
 ```
-基础验证将会生效用，当用户尝试去访问一个保护的资源时将会提示需要登录。在这个配置中，表单登录仍然可用，如果你想用的话，例如通过一个登录表单内嵌另外一个web网页。<br>
+基础验证将会生效，当用户尝试去访问一个保护的资源时将会提示需要登录。在这个配置中，表单登录仍然可用，如果你想用的话，例如通过一个登录表单内嵌另外一个web网页。<br>
 **3. 登录页面及登陆后的默认目标地址**<br>
-如果尝试访问一个受保护的资源，没有提示登陆页面URL，则采用系统默认登录页面，若自己指定URL可自己编辑页面。认证成功后跳转页面有如下四种情况（代码为前三种示例），可通过authentication-success-forward-url指定认证成功跳转页面；通过authentication-success-handler-ref 制定认证成功处理类；若未作指定，可通过always-use-default-target设置为true则启用default-target-url，用户将会被带到这个URL上，默认是"/"，也可以自己进行配置；若以上三种均未作指定，则认证成功后默认跳转到认证前所请求URL。
+如果尝试访问一个受保护的资源，没有提示登陆页面URL，则采用系统默认登录页面，若自己指定URL可自己编辑页面。<br>
+认证成功后跳转页面有如下四种情况（代码为前三种示例）:<br>
+* 可通过authentication-success-forward-url指定认证成功跳转页面；
+* 通过authentication-success-handler-ref 制定认证成功处理类；
+* 若未作指定，可通过always-use-default-target设置为true则启用default-target-url，用户将会被带到这个URL上，默认是"/"，也可以自己进行配置；
+* 若以上三种均未作指定，则认证成功后默认跳转到认证前所请求URL。
+
 ```
 <form-login login-page='/login' authentication-success-forward-url="/success" />
 <form-login login-page='/login' authentication-success-handler-ref="authenticationSuccessHandler" />
@@ -39,7 +45,7 @@ logout 元素用于添加对注销功能支持，注销后可以访问一个特�
 <logout logout-url="/logout" logout-success-url="/login" invalidate-session="true"/>
 ```
 ## 使用其他的Authentication Providers
-不要因为名字迷惑，其实这个配置重要的就是改变用户信息源。在实践中，你将会需要一个更加可扩展的用户信息源而不是添加在application context文件中的一些静态用户时，可以发现在<authentication-provider>下的配置项中除了user-service还有jdbc-user-service和ldap-user-service。第一种比较简单，我们在前一节做了实现且知道其有固定格式，这种格式由UserDetailsService所确定，由名字可知其为用户信息的服务层接口。其他两种分别对应用户的信息存储在数据库或者LDAP服务器，我们先做数据库实现。使用jdbc-user-service配置如下：
+不要因为名字迷惑，其实这个配置重要的就是改变用户信息源。在实践中，你将会需要一个更加可扩展的用户信息源而不是添加在application context文件中的一些静态用户时，可以发现在<authentication-provider>下的配置项中除了user-service还有jdbc-user-service和ldap-user-service。第一种比较简单，我们在前一节做了实现且知道其有固定格式，这种格式由UserDetailsService所确定，由名字可知其为用户信息的服务层接口。其他两种分别对应用户的信息存储在数据库或者ldap服务器。我们在此处做数据库实现。使用jdbc-user-service配置如下：
 ```
 <authentication-manager alias="authenticationManager">
      <authentication-provider>
@@ -110,7 +116,7 @@ create table group_members (
 ```
 配置方法如上所属，其中涉及的具体方法及多种编码器引入如有需要可详细探究。
 ## Remember-Me 功能
-Remember-Me 是指网站能够在 Session 之间记住登录用户的身份，具体来说就是我成功认证一次之后在一定的时间内我可以不用再输入用户名和密码进行登录了，系统会自动给我登录。这通常是通过服务端发送一个 cookie 给客户端浏览器，下次浏览器再访问服务端时服务端能够自动检测客户端的 cookie，根据 cookie 值触发自动登录操作。Spring Security针对 Remember-Me 功能有两种实现。一种是简单的使用加密来保证基于 cookie 的 token 的安全，另一种是通过数据库或其它持久化存储机制来保存生成的 token。推荐使用第二种，具体原理不做重点说明。
+Remember-Me 是指网站能够在 Session 之间记住登录用户的身份，具体来说就是我成功认证一次之后在一定的时间内我可以不用再输入用户名和密码进行登录了，系统会自动给我登录。这通常是通过服务端发送一个 cookie 给客户端浏览器，下次浏览器再访问服务端时服务端能够自动检测客户端的 cookie，根据 cookie 值触发自动登录操作。Spring Security针对 Remember-Me 功能有两种实现。一种是简单的使用加密来保证基于 cookie 的 token 的安全，另一种是通过数据库或其它持久化存储机制来保存生成的 token。第一种应用比较简单，第二种安全性更高，具体原理不做重点说明。
 
 需要注意的是两种实现都需要一个 UserDetailsService。如果你使用的 AuthenticationProvider 不使用 UserDetailsService，那么记住我将会不起作用，除非在你的 ApplicationContext 中拥有一个 UserDetailsService 类型的 bean。
 **基于简单加密 token 的方法（存在隐患）**
@@ -122,7 +128,7 @@ base64(username+":"+expirationTime+":"+md5Hex(username+":"+expirationTime+":"+pa
 ```
 <remember-me key="elim"/>
 ```
-这里有两个需要注意的地方。一，如果你的登录页面是自定义的，那么需要在登录页面上新增一个名为 “_spring_security_remember_me” 的 checkbox;二，上述功能需要一个 UserDetailsService，如果在你的 ApplicationContext 中已经拥有一个了，那么 Spring Security 将自动获取；如果没有，需要定义一个；如果拥有在 ApplicationContext 中拥有多个 UserDetailsService 定义，那么需要通过 remember-me 元素的 user-service-ref 属性指定将要使用的那个。
+这里有两个需要注意的地方。一，如果你的登录页面是自定义的，那么需要在登录页面上新增一个名为 “_spring_security_remember_me” 的 checkbox;二，上述功能需要一个 UserDetailsService，如果在你的 ApplicationContext 中已经拥有一个了，那么 Spring Security 将自动获取；如果没有，需要定义一个；如果拥有在 ApplicationContext 中拥有多个 UserDetailsService 定义，那么需要通过 remember-me 元素的 user-service-ref 属性指定将要使用的那个。<br>
 **基于持久化 token 的方法（推荐）**
 使用持久化 token 方法时需要我们的数据库中拥有如下表及其表结构。
 ```
