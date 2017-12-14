@@ -116,6 +116,7 @@ DelegatingFilterProxy 是Spring框架的一个类，会将过滤操作委派给�
     </http>
 ```
 可以代替步骤1中配置，使用auto-config="true"，一个遗留属性，它自动注册一个登录表单、基本身份验证和注销URL和注销服务,即相当于以下配置：
+
 ```
 <http>
   <form-login/>
