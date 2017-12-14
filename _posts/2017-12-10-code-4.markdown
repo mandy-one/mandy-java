@@ -41,14 +41,14 @@ UserDetails loadUserByUsername(String username) throws UsernameNotFoundException
 在认证成功的情况下， UserDetails 被用来构建 Authentication 对象，并存储在 SecurityContextHolder 中。一个好消息是我们已经提供了大量的 UserDetailsService 的实现，包括使用内存中的map( InMemoryDaoImpl)，和使用JDBC（ JdbcDaoImpl）。尽管如此，大部分用户倾向于基于使用应用中已经存在的用于描述员工、客户或者其他类型用户的数据访问对象(Data Access Object )来编写他们自己的实现。无论UserDetailsService 返回类型是什么，总是可以在 SecurityContextHolder 中通过以上的代码片段来获取。<br>
 提示：读者经常会对 UserDetailsService产生疑惑。它是一个纯粹用于获取用户数据的DAO，除了提供框架中其他组件需要的数据,没有任何其他功能，并不验证用户，验证是通过 AuthenticationManager完成。如果我们需要自定义的验证过程，需要直接实现 AuthenticationProvider。
 ### GrantedAuthority
-除了principal， Authentication 提供的另一个重要的方法是 getAuthorities()。这个方法用于提供一个 GrantedAuthority 对象数组。 GrantedAuthority 表示的是授予当前的 principal权利。这些权利通常是角色("roles")，例如 ROLE_ADMINISTRATOR 或者 ROLE_HR_SUPERVISOR。这些角色的配置是为了接下来的web授权、方法授权和域对象授权。Spring Security的其他部分可以解析角色中权利，执行某些操作时必须拥有这些权利。 GrantedAuthority 对象通常通过 UserDetailsService加载，是整个应用范围的权利许可，并不是针对于某个特定的领域对象。。<br>
+除了principal， Authentication 提供的另一个重要的方法是 getAuthorities()。这个方法用于提供一个 GrantedAuthority 对象数组。 GrantedAuthority 表示的是授予当前的 principal权利。这些权利通常是角色("roles")，例如 ROLE_ADMINISTRATOR 或者 ROLE_HR_SUPERVISOR。这些角色的配置是为了接下来的web授权、方法授权和域对象授权。Spring Security的其他部分可以解析角色中权利，执行某些操作时必须拥有这些权利。 GrantedAuthority 对象通常通过 UserDetailsService加载，是整个应用范围的权利许可，并不是针对于某个特定的领域对象。<br>
 ### 总结
-这里仅仅是简要概括，目前我们所看到的Spring Security的主要组成部分是：
-SecurityContextHolder，提供对 SecurityContext的访问
-SecurityContext，维护了 Authentication 和可能的特定请求的安全信息
-Authentication，以Spring Security的方式描述principal。
-GrantedAuthority，表示在应用范围内授予principal的权利许可。
-UserDetailsService，用来根据传递的字符串形式的用户名(或者验证id等类似信息)来创建 UserDetails 对象。
+这里仅仅是简要概括，目前我们所看到的Spring Security的主要组成部分是：<br>
+SecurityContextHolder，提供对 SecurityContext的访问<br>
+SecurityContext，维护了 Authentication 和可能的特定请求的安全信息<br>
+Authentication，以Spring Security的方式描述principal。<br>
+GrantedAuthority，表示在应用范围内授予principal的权利许可。<br>
+UserDetailsService，用来根据传递的字符串形式的用户名(或者验证id等类似信息)来创建 UserDetails 对象。<br>
 现在你已经对这些总是被重复使用的组件有所理解，让我们来更进一步查看认证的过程。
 ## 2. 认证
 ### Spring Security中的验证authentication 到底是什么？
