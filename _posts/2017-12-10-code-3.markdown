@@ -116,10 +116,9 @@ create table group_members (
 ```
 配置方法如上所属，其中涉及的具体方法及多种编码器引入如有需要可详细探究。
 ## Remember-Me 功能
-Remember-Me 是指网站能够在 Session 之间记住登录用户的身份，具体来说就是我成功认证一次之后在一定的时间内我可以不用再输入用户名和密码进行登录了，系统会自动给我登录。这通常是通过服务端发送一个 cookie 给客户端浏览器，下次浏览器再访问服务端时服务端能够自动检测客户端的 cookie，根据 cookie 值触发自动登录操作。Spring Security针对 Remember-Me 功能有两种实现。一种是简单的使用加密来保证基于 cookie 的 token 的安全，另一种是通过数据库或其它持久化存储机制来保存生成的 token。第一种应用比较简单，第二种安全性更高，具体原理不做重点说明。
-
-需要注意的是两种实现都需要一个 UserDetailsService。如果你使用的 AuthenticationProvider 不使用 UserDetailsService，那么记住我将会不起作用，除非在你的 ApplicationContext 中拥有一个 UserDetailsService 类型的 bean。
-**基于简单加密 token 的方法（存在隐患）**
+Remember-Me 是指网站能够在 Session 之间记住登录用户的身份，具体来说就是我成功认证一次之后在一定的时间内我可以不用再输入用户名和密码进行登录了，系统会自动给我登录。这通常是通过服务端发送一个 cookie 给客户端浏览器，下次浏览器再访问服务端时服务端能够自动检测客户端的 cookie，根据 cookie 值触发自动登录操作。Spring Security针对 Remember-Me 功能有两种实现。一种是简单的使用加密来保证基于 cookie 的 token 的安全，另一种是通过数据库或其它持久化存储机制来保存生成的 token。第一种应用比较简单，第二种安全性更高，具体原理不做重点说明。<br>
+需要注意的是两种实现都需要一个 UserDetailsService。如果你使用的 AuthenticationProvider 不使用 UserDetailsService，那么记住我将会不起作用，除非在你的 ApplicationContext 中拥有一个 UserDetailsService 类型的 bean。<br>
+**基于简单加密 token 的方法（存在隐患）**<br>
 当用户选择了记住我成功登录后，Spring Security 将会生成一个 cookie 发送给客户端浏览器。
 ```
 base64(username+":"+expirationTime+":"+md5Hex(username+":"+expirationTime+":"+password+":"+key))
@@ -129,7 +128,7 @@ base64(username+":"+expirationTime+":"+md5Hex(username+":"+expirationTime+":"+pa
 <remember-me key="elim"/>
 ```
 这里有两个需要注意的地方。一，如果你的登录页面是自定义的，那么需要在登录页面上新增一个名为 “_spring_security_remember_me” 的 checkbox;二，上述功能需要一个 UserDetailsService，如果在你的 ApplicationContext 中已经拥有一个了，那么 Spring Security 将自动获取；如果没有，需要定义一个；如果拥有在 ApplicationContext 中拥有多个 UserDetailsService 定义，那么需要通过 remember-me 元素的 user-service-ref 属性指定将要使用的那个。<br>
-**基于持久化 token 的方法（推荐）**
+**基于持久化 token 的方法（推荐）**<br>
 使用持久化 token 方法时需要我们的数据库中拥有如下表及其表结构。
 ```
 create table persistent_logins (username varchar(64) not null,
@@ -150,8 +149,7 @@ create table persistent_logins (username varchar(64) not null,
   ...
 </http>
 ```
-进行了这样的配置后，如果一个用户尝试通过HTTP访问匹配"/secure/**"模式的任何资源，首先将会被重定向到一个HTTPS URL。可用的选项有"http"、"https"和"any"，使用any表示HTTP和HTTPS都可以使用。
-
+进行了这样的配置后，如果一个用户尝试通过HTTP访问匹配"/secure/**"模式的任何资源，首先将会被重定向到一个HTTPS URL。可用的选项有"http"、"https"和"any"，使用any表示HTTP和HTTPS都可以使用。<br>
 如果你的应用使用非标准的HTTP、HTTPS端口，你可以按照如下方式指定一个端口映射列表：
 ```
 <http>
@@ -172,7 +170,7 @@ create table persistent_logins (username varchar(64) not null,
 ```
 <logout delete-cookies="JSESSIONID" />
 ```
-不幸的是并不能保证在每一个servlet容器中这都功能起到作用，所以你需要在自己的环境中进行测试。
+不幸的是并不能保证在每一个servlet容器中这都功能起到作用，所以你需要在自己的环境中进行测试。<br>
 提示：如果你在一个代理之后运行自己的应用，你同样可以通过配置代理服务器来删除session cookie。例如使用 apache HTTPD的mod_headers，以下的指令将会删除 JSESSIONID cookie，原理是在一个注销请求的响应中设置cookie过期。(假设应用的部署路径是 /tutorial)
 ```
 <LocationMatch "/tutorial/logout">Header always set Set-Cookie
@@ -200,19 +198,21 @@ create table persistent_logins (username varchar(64) not null,
         <concurrency-control max-sessions="1" error-if-maximum-exceeded="true" />
 </session-management>
 ```
-二次登录就会被拒绝，"拒绝"的意思是用户将会被带到 authentication-failure-url指定的url（如果使用了基于表单登录的话）。如果二次验证是通过另外的非交互的机制发生的，例如" remember-me"，一个“ unauthorized”401错误将会被发送给客户端。如果你想用一个错误页面来替代。你可以在 session-management元素中添加属性 session-authentication-error-url。
+二次登录就会被拒绝，"拒绝"的意思是用户将会被带到 authentication-failure-url指定的url（如果使用了基于表单登录的话）。如果二次验证是通过另外的非交互的机制发生的，例如" remember-me"，一个“ unauthorized”401错误将会被发送给客户端。如果你想用一个错误页面来替代。你可以在 session-management元素中添加属性 session-authentication-error-url。<br>
 如果你为表单登录使用了一个自定义的验证过滤器，那么你必须显式的配置当前session控制的支持。
 
 ## 添加你自己的Filter
-Spring Security为了提供其服务在内部维护了一个过滤器链，当使用命名空间的时候，filter的执行顺序是强制的。当application context被创建，命名空间处理的代码将会对filter进行排序，并且每一个自带的Spring Security过滤器在命名空间中都有一个别名和已知的位置。Filter的顺序，定义在类org.springframework.security.config.annotation.web.builders.FilterComparator中。可以在其中添加自己的过滤器，使用custom-filter元素和这些名字中的其中一个来指定你的过滤器应该出现的位置：
+Spring Security为了提供其服务在内部维护了一个过滤器链，当使用命名空间的时候，filter的执行顺序是强制的。当application context被创建，命名空间处理的代码将会对filter进行排序，并且每一个自带的Spring Security过滤器在命名空间中都有一个别名和已知的位置。<br>
+Filter的顺序，定义在类org.springframework.security.config.annotation.web.builders.FilterComparator中。可以在其中添加自己的过滤器，使用custom-filter元素和这些名字中的其中一个来指定你的过滤器应该出现的位置：
 ```
 <custom-filter position="FORM_LOGIN_FILTER" ref="myFilter" />
 ```
-如果你希望你的过滤器在过滤器链中某个filter之前或者之后插入，你同样可以使用 after 或者 before 属性 。" FIRST"和"LAST"可以用在position属性上，来表明你希望你的过滤器出现在spring-security整个过滤器栈之前或者之后。提示：如果你插入一个自定义过滤器，其占用了由命名空间创建的某一个标准过滤器的位置，那么你不能引入命名空间版本。移除任何元素都将会创建你希望替换的功能的过滤器。注意你不能通过http元素自身替换其创建的过滤器：
-SecurityContextPersistenceFilter、 ExceptionTranslationFilter 、 FilterSecurityInterceptor。一些其他的过滤器默认会添加，但是你也可以禁用它们。 AnonymousAuthenticationFilter 默认会被添加，并且除非你希望会话固定保护被禁用，否则 SessionManagementFilter 也会被添加到过滤器链中。
+如果你希望你的过滤器在过滤器链中某个filter之前或者之后插入，你同样可以使用 after 或者 before 属性 。" FIRST"和"LAST"可以用在position属性上，来表明你希望你的过滤器出现在spring-security整个过滤器栈之前或者之后。提示：如果你插入一个自定义过滤器，其占用了由命名空间创建的某一个标准过滤器的位置，那么你不能引入命名空间版本。移除任何元素都将会创建你希望替换的功能的过滤器。<br>
+注意不能通过http元素自身替换其创建的过滤器：
+SecurityContextPersistenceFilter、 ExceptionTranslationFilter 、 FilterSecurityInterceptor。一些其他的过滤器默认会添加，但是你也可以禁用它们。 AnonymousAuthenticationFilter 默认会被添加，并且除非你希望会话固定保护被禁用，否则 SessionManagementFilter 也会被添加到过滤器链中。<br>
 如果你替换了一个需要验证入口(authentication entry point)的命名空间过滤器，你同样需要添加一个自定义的入口bean。验证入口指的是：当一个未通过验证的用户尝试访问一个受保护的资源触发的验证过程。
 ## 默认的AccessDecisionManager
-当你使用一个命名空间配置，将会为你注册一个默认的 AccessDecisionManager 实例，其基于 intercept-url和 protect-pointcut的声明(或者是注解)，来对web URL和方法调用做出一些访问判断。
+当你使用一个命名空间配置，将会为你注册一个默认的 AccessDecisionManager 实例，其基于 intercept-url和 protect-pointcut的声明(或者是注解)，来对web URL和方法调用做出一些访问判断。<br>
 默认的策略是使用带有 RoleVoter 和 AuthenticatedVoter的 AffirmativeBased 、AccessDecisionManager 。<br>
 **自定义AccessDecisionManager**<br>
 如果你需要使用一个更加复杂的访问控制策略，那么你要知道对于方法安全和web安全设置一个替代者都非常简单。对于方法安全，你通过设置 global-method-securit元素的 access-decision-manager-ref属性 来指向一个在application context中定义的合适的 AccessDecisionManager bean的id。
